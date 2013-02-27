@@ -80,7 +80,7 @@ class graphite::config (
 			enable     => true,
 			hasrestart => true,
 			hasstatus  => true,
-			require    => Exec['Chown graphite for apache'];
+			require    => Exec['Chown graphite for web_user'];
 		}
 	}
 
@@ -90,20 +90,18 @@ class graphite::config (
 		command     => 'python manage.py syncdb --noinput',
 		cwd         => '/opt/graphite/webapp/graphite',
 		refreshonly => true,
-		notify      => Exec['Chown graphite for apache'],
+		notify      => Exec['Chown graphite for web_user'],
 		subscribe   => Exec["Install ${::graphite::params::graphiteVersion}"],
-		before      => Exec['Chown graphite for apache'];
+		before      => Exec['Chown graphite for web_user'];
 	}
 
 	# change access permissions for apache
 
-	if (false) {
-		exec { 'Chown graphite for apache':
-			command     => "chown -R ${::graphite::params::web_user}:${::graphite::params::web_user} /opt/graphite/storage/",
-			cwd         => '/opt/graphite/',
-			refreshonly => true,
-			require     => Anchor['graphite::install::end'],
-		}
+	exec { 'Chown graphite for web_user':
+		command     => "chown -R ${::graphite::params::web_user}:${::graphite::params::web_user} /opt/graphite/storage/",
+		cwd         => '/opt/graphite/',
+		refreshonly => true,
+		require     => Anchor['graphite::install::end'],
 	}
 
 	# Deploy configfiles
