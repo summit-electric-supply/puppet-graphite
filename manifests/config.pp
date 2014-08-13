@@ -37,30 +37,36 @@ class graphite::config (
 
 	# we need an apache with python support
 
-	package {
-		"${::graphite::params::apache_pkg}":        ensure => installed;
-	}
+	if (false) {
+		package {
+			"${::graphite::params::apache_pkg}":        ensure => installed;
+		}
 
-	package {
-		"${::graphite::params::apache_python_pkg}":
-			ensure  => installed,
-			require => Package["${::graphite::params::apache_pkg}"]
+		package {
+			"${::graphite::params::apache_python_pkg}":
+				ensure  => installed,
+				require => Package["${::graphite::params::apache_pkg}"]
+		}
 	}
 
 	case $::osfamily {
 		debian: {
-			exec { 'Disable default apache site':
-				command => 'a2dissite default',
-				onlyif  => 'test -f /etc/apache2/sites-enabled/000-default',
-				require => Package["${::graphite::params::apache_python_pkg}"],
-				notify  => Service["${::graphite::params::apache_service_name}"];
+			if (false) {
+				exec { 'Disable default apache site':
+					command => 'a2dissite default',
+					onlyif  => 'test -f /etc/apache2/sites-enabled/000-default',
+					require => Package["${::graphite::params::apache_python_pkg}"],
+					notify  => Service["${::graphite::params::apache_service_name}"];
+				}
 			}
 		}
 		redhat: {
-			file { "${::graphite::params::apacheconf_dir}/welcome.conf":
-				ensure  => absent,
-				require => Package["${::graphite::params::apache_python_pkg}"],
-				notify  => Service["${::graphite::params::apache_service_name}"];
+			if (false) {
+				file { "${::graphite::params::apacheconf_dir}/welcome.conf":
+					ensure  => absent,
+					require => Package["${::graphite::params::apache_python_pkg}"],
+					notify  => Service["${::graphite::params::apache_service_name}"];
+				}
 			}
 		}
 		default: {
@@ -68,12 +74,14 @@ class graphite::config (
       		}
 	}
 
-	service { "${::graphite::params::apache_service_name}":
-		ensure     => running,
-		enable     => true,
-		hasrestart => true,
-		hasstatus  => true,
-		require    => Exec['Chown graphite for apache'];
+	if (false) {
+		service { "${::graphite::params::apache_service_name}":
+			ensure     => running,
+			enable     => true,
+			hasrestart => true,
+			hasstatus  => true,
+			require    => Exec['Chown graphite for web_user'];
+		}
 	}
 
 	# first init of user db for graphite
@@ -82,14 +90,14 @@ class graphite::config (
 		command     => 'python manage.py syncdb --noinput',
 		cwd         => '/opt/graphite/webapp/graphite',
 		refreshonly => true,
-		notify      => Exec['Chown graphite for apache'],
+		notify      => Exec['Chown graphite for web_user'],
 		subscribe   => Exec["Install ${::graphite::params::graphiteVersion}"],
-		before      => Exec['Chown graphite for apache'];
+		before      => Exec['Chown graphite for web_user'];
 	}
 
 	# change access permissions for apache
 
-	exec { 'Chown graphite for apache':
+	exec { 'Chown graphite for web_user':
 		command     => "chown -R ${::graphite::params::web_user}:${::graphite::params::web_user} /opt/graphite/storage/",
 		cwd         => '/opt/graphite/',
 		refreshonly => true,
@@ -105,37 +113,42 @@ class graphite::config (
 			group   => $::graphite::params::web_user,
 			mode    => '0644',
 			content => template('graphite/opt/graphite/webapp/graphite/local_settings.py.erb');
-		"${::graphite::params::apache_dir}/ports.conf":
-			ensure  => file,
-			owner   => $::graphite::params::web_user,
-			group   => $::graphite::params::web_user,
-			mode    => '0644',
-			content => template('graphite/etc/apache2/ports.conf.erb'),
-			require => [
-				Package["${::graphite::params::apache_python_pkg}"],
-				Exec['Initial django db creation']
-			];
-		"${::graphite::params::apacheconf_dir}/graphite.conf":
-			ensure  => file,
-			owner   => $::graphite::params::web_user,
-			group   => $::graphite::params::web_user,
-			mode    => '0644',
-			content => template('graphite/etc/apache2/sites-available/graphite.conf.erb'),
-			require => [
-				File["${::graphite::params::apache_dir}/ports.conf"],
-			];
 	}
 
-	case $::osfamily {
-		debian: {
-			file { '/etc/apache2/sites-enabled/graphite.conf':
-				ensure  => link,
-				target  => "${::graphite::params::apacheconf_dir}/graphite.conf",
-				require => File['/etc/apache2/sites-available/graphite.conf'],
-				notify  => Service["${::graphite::params::apache_service_name}"];
-			}
+	if (false) {
+		file {
+			"${::graphite::params::apache_dir}/ports.conf":
+				ensure  => file,
+				owner   => $::graphite::params::web_user,
+				group   => $::graphite::params::web_user,
+				mode    => '0644',
+				content => template('graphite/etc/apache2/ports.conf.erb'),
+				require => [
+					Package["${::graphite::params::apache_python_pkg}"],
+					Exec['Initial django db creation']
+				];
+			"${::graphite::params::apacheconf_dir}/graphite.conf":
+				ensure  => file,
+				owner   => $::graphite::params::web_user,
+				group   => $::graphite::params::web_user,
+				mode    => '0644',
+				content => template('graphite/etc/apache2/sites-available/graphite.conf.erb'),
+				require => [
+					File["${::graphite::params::apache_dir}/ports.conf"],
+				];
 		}
-		default: {}
+
+		case $::osfamily {
+			debian: {
+				file { '/etc/apache2/sites-enabled/graphite.conf':
+					ensure  => link,
+					target  => "${::graphite::params::apacheconf_dir}/graphite.conf",
+					require => File['/etc/apache2/sites-available/graphite.conf'],
+					notify  => Service["${::graphite::params::apache_service_name}"];
+				}
+			}
+			default: {}
+		}
 	}
 
 	# configure carbon engine
